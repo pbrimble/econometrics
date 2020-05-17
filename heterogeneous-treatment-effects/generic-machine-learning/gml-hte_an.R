@@ -70,7 +70,7 @@ load(paste0(name, "_ml.RData"))
 num_groups     <- 5             # number of quantile groups (greater than 1)
 num_thres      <- 1/num_groups  # quantile for most/least var_affected group (do not change)
 tog_mono       <- 0             # rearrange for GATES monotonicity (1), or no rearrangement (0)
-num_kfold_spec <- 0             # if tog_kfold==1, choose specific fold to run analysis on to return to split sampling method
+num_kfold_spec <- 0             # if tog_kfold == 1, choose specific fold to run analysis on to return to split sampling method
                                 # or run on full sample (0)
 tog_endostrat  <- 0             # choose 1 for endogenous stratification, otherwise will sort by predicted treatment effect (0)
 
