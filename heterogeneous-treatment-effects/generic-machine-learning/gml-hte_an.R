@@ -30,7 +30,7 @@
 #------------------------------------------------------------------------------#
 ## A) INPUT DECISIONS
 #------------------------------------------------------------------------------#
-## There are 4 INPUT blocks to assist with customising this programme.
+## There are 10 INPUT blocks to assist with customising this programme.
 
 ## A.1) LOAD PACKAGES ##########################################################
 rm(list=ls(all=TRUE))
@@ -47,23 +47,23 @@ set.seed(1211);
 
 ## A.2) PRELIMINARIES ##########################################################
 
-## Preliminaries [INPUT 1/5]
+## Preliminaries [INPUT 1/10]
 #setwd()                    # set working directory
 
-## Set Clusters [INPUT 2/15]
+## Set Clusters [INPUT 2/10]
 num_clusters <- 4           # number of clusters for parallel procesing
 cl   <- makeCluster(num_clusters, outfile="")
 registerDoParallel(cl)
 
-## Name [INPUT 3/4]
+## Name [INPUT 3/10]
 name        <- "name"
 
-## Load Data [INPUT 4/15]
+## Load Data [INPUT 4/10]
 load(paste0(name, "_ml.RData"))
 
 ## A.3) ANALYSIS PREPARATION ###################################################
 
-## Key Parameters [INPUT 5/15]
+## Key Parameters [INPUT 5/10]
 num_groups     <- 5             # number of quantile groups (greater than 1)
 num_thres      <- 1/num_groups  # quantile for most/least var_affected group (do not change)
 tog_mono       <- 0             # rearrange for GATES monotonicity (1), or no rearrangement (0)
@@ -73,11 +73,11 @@ tog_endostrat  <- 0             # choose 1 for endogenous stratification, otherw
 
 tog_silence    <- 0
 
-## Significance Level
+## Significance Level [INPUT 6/10]
 num_alpha      <- 0.05          # signifigance level
 num_crit <- qnorm(1-num_alpha/2) # critical value from significance level
 
-## Fixed Effects  (Change if Necessary) [INPUT 6/15]
+## Fixed Effects  (Change if Necessary) [INPUT 7/10]
 tog_fe_change  <- 0             # if like to change fixed effects, set to 1
 if(tog_fe_change == 1){
     tog_fe1 <- 0
@@ -89,7 +89,7 @@ if(tog_fe_change == 1){
 if(tog_fe1 == 0){ var_fe1 <- "" }
 if(tog_fe2 == 0){ var_fe2 <- "" }
 
-## Cluster (Change if Necessary) [INPUT 7/15]
+## Cluster (Change if Necessary) [INPUT 8/10]
 tog_fe_change  <- 0             # if like to change cluster variable, set to 1
 if(tog_fe_change == 1){
     tog_cluster <- 0
@@ -97,7 +97,7 @@ if(tog_fe_change == 1){
 }
 if(tog_cluster == 0){ var_clister <- ""}
 
-## Additional Control Variables (Change if Necessary) [INPUT 8/15]
+## Additional Control Variables (Change if Necessary) [INPUT 9/10]
 tog_var_add_change  <- 0                         # if like to change additional variables, set to 1
 if(tog_var_add_change == 1){
     var_add        <- c("addvar1","addvar2")     # easier to make this list exhaustive (can reduce additional variables in analysis file)
@@ -105,7 +105,7 @@ if(tog_var_add_change == 1){
     for(i in 1:length(var_add)){ form_var_add <- (paste0(form_var_add,"+",var_add[i])) }
 }
 
-## CLANs (Change if Necessary) [INPUT 9/15]
+## CLANs (Change if Necessary) [INPUT 10/10]
 tog_var_affected_change <- 0                    # if like to change CLAN variables, set to 1
 if(tog_var_affected_change == 1){
     var_affected       <- c("cov1","cov2")

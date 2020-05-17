@@ -51,7 +51,7 @@ set.seed(1211);
 ## A.2) PRELIMINARIES ##########################################################
 
 ## Preliminaries [INPUT 1/15]
-#setwd()                    # set working directory
+#setwd()                    # set working directory to save output
 source("ML_Functions.R")    # source ML_Functions file
 
 ## Set Clusters [INPUT 2/15]
