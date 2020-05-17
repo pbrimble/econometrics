@@ -74,7 +74,7 @@ num_kfold_spec <- 0             # if tog_kfold==1, choose specific fold to run a
                                 # or run on full sample (0)
 tog_endostrat  <- 0             # choose 1 for endogenous stratification, otherwise will sort by predicted treatment effect (0)
 
-tog_silence    <- 0
+tog_silence    <- 0             # silence regression warnings
 
 ## Significance Level [INPUT 6/10]
 num_alpha      <- 0.05          # signifigance level
