@@ -27,12 +27,13 @@
 
 # ML_Functions.R code is also required.
 
-####################################### Input Decisions  #######################################
-# There are 4 INPUT blocks to assist with customising this programme.
+#------------------------------------------------------------------------------#
+## A) INPUT DECISIONS
+#------------------------------------------------------------------------------#
+## There are 4 INPUT blocks to assist with customising this programme.
 
-####################################### Load Packages #######################################
+## A.1) LOAD PACKAGES ##########################################################
 rm(list=ls(all=TRUE))
-
 list_packages= c("foreign", "quantreg", "gbm", "glmnet",
            "MASS", "rpart", "doParallel", "sandwich", "randomForest",
            "nnet", "matrixStats", "xtable", "readstata13", "car", "lfe",
@@ -44,59 +45,98 @@ time_start_an <- proc.time()
 
 set.seed(1211);
 
-####################################### Load and Process Data  #######################################
-# Name [INPUT 1/4]
+## A.2) PRELIMINARIES ##########################################################
+
+## Preliminaries [INPUT 1/5]
+#setwd()                    # set working directory
+
+## Set Clusters [INPUT 2/15]
+num_clusters <- 4           # number of clusters for parallel procesing
+cl   <- makeCluster(num_clusters, outfile="")
+registerDoParallel(cl)
+
+## Name [INPUT 3/4]
 name        <- "name"
 
-# Load Data
+## Load Data [INPUT 4/15]
 load(paste0(name, "_ml.RData"))
 
-####################################### Parameters  #######################################
-# Key Parameters [INPUT 2/4]
-num_groups     <- 5        # number of quantile groups (3, 4 or 5)
-num_thres      <- 1/num_groups     # quantile for most/least var_affected group
-num_alpha      <- 0.05    # signifigance level
-tog_mono       <- 0      # rearrange for GATES monotonicity ("1"), or no rearrangement ("0")
-num_kfold_spec <- 0      # if kfold=="1", choose specific fold to run analysis on to return to split sampling method
-                     # or run on full sample ("0")
-tog_endostrat  <- 0     # choose "1" for endogenous stratification, otherwise will sort by predicted treatment effect ("0")
+## A.3) ANALYSIS PREPARATION ###################################################
+
+## Key Parameters [INPUT 5/15]
+num_groups     <- 5             # number of quantile groups (greater than 1)
+num_thres      <- 1/num_groups  # quantile for most/least var_affected group (do not change)
+tog_mono       <- 0             # rearrange for GATES monotonicity (1), or no rearrangement (0)
+num_kfold_spec <- 0             # if tog_kfold==1, choose specific fold to run analysis on to return to split sampling method
+                                # or run on full sample (0)
+tog_endostrat  <- 0             # choose 1 for endogenous stratification, otherwise will sort by predicted treatment effect (0)
 
 tog_silence    <- 0
 
-# Additional Control Variables (Change if Necessary) [INPUT 3/4]
-tog_var_add_change  <- 0                         # if no additional variables <- "0"
+## Significance Level
+num_alpha      <- 0.05          # signifigance level
+num_crit <- qnorm(1-num_alpha/2) # critical value from significance level
+
+## Fixed Effects  (Change if Necessary) [INPUT 6/15]
+tog_fe_change  <- 0             # if like to change fixed effects, set to 1
+if(tog_fe_change == 1){
+    tog_fe1 <- 0
+    tog_fe2 <- 0
+    var_fe1 <- "fixedeffect1"   # replace with fixed effect variable name
+    var_fe2 <- "fixedeffect2"   # replace with fixed effect variable name
+}
+
+if(tog_fe1 == 0){ var_fe1 <- "" }
+if(tog_fe2 == 0){ var_fe2 <- "" }
+
+## Cluster (Change if Necessary) [INPUT 7/15]
+tog_fe_change  <- 0             # if like to change cluster variable, set to 1
+if(tog_fe_change == 1){
+    tog_cluster <- 0
+    var_cluster <- "cluster"
+}
+if(tog_cluster == 0){ var_clister <- ""}
+
+## Additional Control Variables (Change if Necessary) [INPUT 8/15]
+tog_var_add_change  <- 0                         # if like to change additional variables, set to 1
 if(tog_var_add_change == 1){
     var_add        <- c("addvar1","addvar2")     # easier to make this list exhaustive (can reduce additional variables in analysis file)
     form_var_add   <- ""
     for(i in 1:length(var_add)){ form_var_add <- (paste0(form_var_add,"+",var_add[i])) }
 }
 
-# CLANs (Change if Necessary) [INPUT 4/4]
-tog_var_affected_change <- 0
+## CLANs (Change if Necessary) [INPUT 9/15]
+tog_var_affected_change <- 0                    # if like to change CLAN variables, set to 1
 if(tog_var_affected_change == 1){
     var_affected       <- c("cov1","cov2")
     names_affected <- c("cov1_name","cov2_name")
 }
 
-# Group Variable Add Form
+## Group Variable Add Form
 form_var_group = ""
 for(g in 1:num_groups){
     form_var_group <- paste0(form_var_group,"+G",g)
 }
-####################################### Estimation  #######################################
 
+#------------------------------------------------------------------------------#
+## B) ANALYSIS PROCEDURE
+#------------------------------------------------------------------------------#
+
+## Start of Repetition Loop
 results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .packages=list_packages_an)  %dopar% {
 
     set.seed(t);
+
+    ## B1) DATA EXTRACTION ######################################################
 
     results_blp_ate      <- matrix(NA,5*length(var_Y), length(ml_methods))
     results_blp_het      <- matrix(NA,5*length(var_Y), length(ml_methods))
     results_gates_tests  <- matrix(NA,15*length(var_Y), length(ml_methods))
     results_gates        <- matrix(NA,3*num_groups*length(var_Y), length(ml_methods))
-    results_clan        <- matrix(NA, (length(var_affected)*15)*length(var_Y), length(ml_methods))
+    results_clan         <- matrix(NA, (length(var_affected)*15)*length(var_Y), length(ml_methods))
     results_ml_best      <- matrix(NA, 2*length(var_Y), length(ml_methods))
 
-  ## Call ML Results for All Methods
+    ## Call ML Results for All Methods
     if(tog_kfold == 0){
         results_cv        <- array(c(as.vector(results_ml[1:nrow(data),t])))
         if(tog_holarge == 1){ dataout_raw <- as.data.frame(data[results_cv != 1,]) }
@@ -118,7 +158,9 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
         }
     }
 
-    # Prepare Data
+    ## B2) DATA FILTERING ######################################################
+
+    ## Outcome Loop
     for(i in 1:length(var_Y)){
         y      <- var_Y[i]
         d      <- var_D[i]
@@ -142,16 +184,23 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
             S_est     <- S_raw[  complete.cases(S_raw),]
         }
 
+        ## B3) INFERENCE PROCEDURE ##############################################
+
+        ## Machine Learning Methods Loop
         for(l in 1:length(ml_methods)){
-            ############ Load Scores from ML ############
+
+            ## Load Machine Learning Scores
             md_x         <- mdx_est[,l]
             B            <- B_est[,l]
             S            <- S_est[,l]
-            ############################################# GATES #############################################
 
+            ## B3.1) Group Average Treatment Effects (GATES) ###################
+
+            ## Sorting Variable
             if(tog_endostrat == 0){ S2 <- S+runif(length(S), 0, 0.00001) }
             if(tog_endostrat == 1){ S2 <- B+runif(length(B), 0, 0.00001) }
 
+            ## Create Groups
             breaks    <- quantile(S2, seq(0,1, num_thres),  include.lowest =T)
             breaks[1] <- breaks[1] - 0.001
             breaks[num_groups+1] <- breaks[num_groups+1] + 0.001
@@ -159,14 +208,16 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
             SGX       <- model.matrix(~-1+SG)
             DSG       <- data.frame(as.numeric(I(as.numeric(dataest[,d])-md_x))*SGX)
 
-            # Add Variables to Dataest
+            ## Add Interaction Variables to Dataest
             dataest[, c("B", "S")] <- cbind(B, S)
             for(g in 1:num_groups){ dataest[, c(paste0("G",g))] <- cbind(DSG[,g]) }
             dataest[, c("weight")] <- cbind(as.numeric((1/(md_x * (1 - md_x)))))
 
+            ## Ensure Variation
             if(var(dataest$B) == 0){ dataest$B <- dataest$B + rnorm(length(dataest$B),  mean=0, sd=0.1) }
             if(var(dataest$S) == 0){ dataest$S <- dataest$S + rnorm(length(dataest$S),  mean=0, sd=0.1) }
 
+            ## Estimation of GATES
             form1 <- as.formula(paste(y, "~", "B+S", form_var_group, form_var_add, "|",  var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
 
             a <- tryCatch({
@@ -185,8 +236,7 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
             })
             reg   <- a
 
-            crit <- qnorm(1-num_alpha/2)
-
+            ## Most and Least Affected Groups Results
             mean <- numeric(0)
             sd   <- numeric(0)
             for(g in 1:num_groups){
@@ -196,21 +246,22 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
 
             if(tog_mono == 1){
                 results_gates[((i-1)*3*num_groups+1):((i-1)*3*num_groups+num_groups),l]        <- sort(mean)
-                results_gates[((i-1)*3*num_groups+num_groups+1):((i-1)*3*num_groups+2*num_groups),l]   <- sort(mean +crit*sd)
-                results_gates[((i-1)*3*num_groups+2*num_groups+1):((i-1)*3*num_groups+3*num_groups),l] <- sort(mean -crit*sd)
+                results_gates[((i-1)*3*num_groups+num_groups+1):((i-1)*3*num_groups+2*num_groups),l]   <- sort(mean +num_crit*sd)
+                results_gates[((i-1)*3*num_groups+2*num_groups+1):((i-1)*3*num_groups+3*num_groups),l] <- sort(mean -num_crit*sd)
 
                 Gmax <- paste("G",toString(which.max(mean)),sep="")
                 Gmin <- paste("G",toString(which.min(mean)),sep="")
             }
             if(tog_mono == 0){
                 results_gates[((i-1)*3*num_groups+1):((i-1)*3*num_groups+num_groups),l]        <- mean
-                results_gates[((i-1)*3*num_groups+num_groups+1):((i-1)*3*num_groups+2*num_groups),l]   <- mean +crit*sd
-                results_gates[((i-1)*3*num_groups+2*num_groups+1):((i-1)*3*num_groups+3*num_groups),l] <- mean -crit*sd
+                results_gates[((i-1)*3*num_groups+num_groups+1):((i-1)*3*num_groups+2*num_groups),l]   <- mean +num_crit*sd
+                results_gates[((i-1)*3*num_groups+2*num_groups+1):((i-1)*3*num_groups+3*num_groups),l] <- mean -num_crit*sd
 
                 Gmax <- paste("G",num_groups,sep="")
                 Gmin <- "G1"
             }
 
+            ## Most Affected Group Test Results
             coef <- (summary(reg)$coefficients[Gmax,1])
             pval <- (summary(reg)$coefficients[Gmax,4])
             results_gates_tests[(1 + (i - 1) * 15):(5 + ((i - 1) * 15)), l] <-
@@ -218,6 +269,7 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
                     (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                     (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2)) )
 
+            ## Least Affected Group Test Results
             coef <- (summary(reg)$coefficients[Gmin,1])
             pval <- (summary(reg)$coefficients[Gmin,4])
             results_gates_tests[(6+(i-1)*15):(10+((i-1)*15)),l]  <-
@@ -225,6 +277,7 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
                     (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                     (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2)) )
 
+            ## Difference Test Results
             Gdif <- paste(Gmax,"-",Gmin," == 0",sep="")
             test <- glht(reg, linfct = c(Gdif))
             coef <- (summary(reg)$coefficients[Gmax,1]) - (summary(reg)$coefficients[Gmin,1])
@@ -234,14 +287,17 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
                     (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                     (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2)) )
 
+            ## Machine Learning Best Statistic (GATES)
             results_ml_best[(1+(i-1)*2),l]  <- (sum(mean^2)/num_groups)
 
-            ################################### Best Linear Prediction Regression  ###################################
+            ## B3.2) Best Linear Predictor (BLP) ###############################
 
+            ## Create Variables
             Sd            <- dataest$S- mean(dataest$S)
             dataest$S_ort <- I((as.numeric(dataest[,d])-md_x)*Sd)
             dataest$d_ort <- I((as.numeric(dataest[,d])-md_x))
 
+            ## Estimation of BLP
             form1 <- as.formula(paste(y, "~", "B+S+d_ort+S_ort", form_var_add, "|", var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
 
             a  <- tryCatch({
@@ -259,6 +315,7 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
             })
             reg <- a
 
+            ## Average Treatment Effect (ATE) Results
             coef <- (summary(reg)$coefficients['d_ort',1])
             pval <- (summary(reg)$coefficients['d_ort',4])
             results_blp_ate[(1+(i-1)*5):(i*5),l]      <-
@@ -266,6 +323,7 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
                     (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                     (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2)) )
 
+            ## Heterogeneity Loading Factor (HET) Results
             coef <- (summary(reg)$coefficients['S_ort',1])
             pval <- (summary(reg)$coefficients['S_ort',4])
             results_blp_het[(1 + (i - 1) * 5):(i * 5), l] <-
@@ -273,45 +331,44 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
                     (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                     (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2)) )
 
+            ## Machine Learning Best Statistic (BLP)
             results_ml_best[(2+(i-1)*2),l]      <- abs(summary(reg)$coefficients['S_ort',1])*sqrt(var(dataest$S))
 
 
-            ################################################ CLANS  ################################################
-            if(tog_endostrat == 0){
-                high.effect     <- quantile(dataest$S, 1-num_thres);
-                low.effect      <- quantile(dataest$S, num_thres);
-                dataest$h       <- as.numeric(dataest$S>high.effect)
-                dataest$l       <- as.numeric(dataest$S<low.effect)
-            }
-            if(tog_endostrat == 1){
-                high.effect     <- quantile(dataest$B, 1-num_thres);
-                low.effect      <- quantile(dataest$B, num_thres);
-                dataest$h       <- as.numeric(dataest$B>high.effect)
-                dataest$l       <- as.numeric(dataest$B<low.effect)
-            }
+            ## B3.3) Classification Analysis (CLAN) ############################
 
+            ## Least and Most Affected Group Dummies
+            dataest$h       <- SGX[,as.numeric(substr(Gmax,2,2))]
+            dataest$l       <- SGX[,as.numeric(substr(Gmin,2,2))]
+
+            ## Ensure Variation
             if(var(dataest$h) == 0){ dataest$h <- as.numeric(runif(length(dataest$h))<0.1) }
             if(var(dataest$l) == 0){ dataest$l <- as.numeric(runif(length(dataest$l))<0.1) }
 
+            ## CLAN Variable Loop
             for(m in 1:length(var_affected)){
                 a  <- tryCatch({
+                    ## CLAN Regression
                     form <-  paste(var_affected[m],"~h+l-1", sep="")
                     reg  <-  lm(form, data=dataest[(dataest$h == 1)| (dataest$l == 1),])
                     coef <-  reg$coefficients['h'] - reg$coefficients['l']
                     test <-  glht(reg, linfct = c("h-l == 0"))
 
+                    ## Most Affected Results
                     coef <-  (summary(reg)$coefficients['h',1])
                     pval <-  (summary(reg)$coefficients['h',4])
                     res1 <- c(coef, confint(reg, "h", level = 1 - num_alpha)[1:2],
                              (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                              (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2)) )
 
+                    ## Least Affected Results
                     coef <-  (summary(reg)$coefficients['l',1])
                     pval <-  (summary(reg)$coefficients['l',4])
                     res2 <- c(coef, confint(reg, "l", level = 1 - num_alpha)[1:2],
                              (as.numeric(coef < 0) * (pval/2) + as.numeric(coef > 0) * (1 - pval/2)),
                              (as.numeric(coef > 0) * (pval/2) + as.numeric(coef < 0) * (1 - pval/2))  )
 
+                    ## Difference Results
                     coef <- (summary(reg)$coefficients['h',1]) - (summary(reg)$coefficients['l',1])
                     pval <- summary(test)$test$pvalues[1]
                     res3 <- c((confint(test, level = 1 - num_alpha))$confint[1:3],
@@ -331,15 +388,23 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
                     return(a)
                 })
                 results_clan[((i-1)*length(var_affected)*15+(m-1)*15+1):((i-1)*length(var_affected)*15+(m)*15),l]   <- a
-            }
-        }
-    }
+            }   ## End of CLAN Variable Loop
+
+        }   ## End of Machine Learning Method Loop
+
+    }   ## End of Outcome Loop
+
     results_all_vector <- c(as.vector(results_gates_tests), as.vector(results_blp_ate), as.vector(results_blp_het), as.vector(results_gates), as.vector(results_ml_best), as.vector(results_clan))
     print(t)
     results_an <- data.frame(results_all_vector)
-}
 
-####################################### Prepare Latex Tables for BLP and Most/Least Affected  #######################################
+}   ## End of Repetition Loop
+
+#------------------------------------------------------------------------------#
+## C) OUTPUT PROCEDURE
+#------------------------------------------------------------------------------#
+
+## C1) DATA PROCESSING #########################################################
 
 results_gates_tests  <- array(c(as.matrix(results_an[1:(15*length(var_Y)*length(ml_methods)),])), c(15*length(var_Y),length(ml_methods), num_reps))
 results_blp_ate      <- array(c(as.matrix(results_an[((15*length(var_Y)*length(ml_methods))+1):((15+5)*length(var_Y)*length(ml_methods)),])), c(5*length(var_Y),length(ml_methods), num_reps))
@@ -348,6 +413,7 @@ results_gates        <- array(c(as.matrix(results_an[(((25)*length(var_Y)*length
 results_ml_best      <- array(c(as.matrix(results_an[(((25+3*num_groups)*length(var_Y)*length(ml_methods))+1):((25+3*num_groups+2)*length(var_Y)*length(ml_methods)),])), c(2*length(var_Y),length(ml_methods), num_reps))
 results_clan         <- array(c(as.matrix(results_an[(((25+3*num_groups+2)*length(var_Y)*length(ml_methods))+1):((25+3*num_groups+2+length(var_affected)*15)*length(var_Y)*length(ml_methods)),])), c(length(var_affected)*15*length(var_Y),length(ml_methods), num_reps))
 
+## Medians
 results_blp_ate_all       <- t(sapply(seq(1:nrow(results_blp_ate[,,1])), function(x) colMedians(t(results_blp_ate[x,,]))))
 results_blp_het_all       <- t(sapply(seq(1:nrow(results_blp_het[,,1])), function(x) colMedians(t(results_blp_het[x,,]))))
 results_gates_tests_all   <- t(sapply(seq(1:nrow(results_gates_tests[,,1])), function(x) colMedians(t(results_gates_tests[x,,]))))
@@ -387,6 +453,7 @@ for(i in seq(1, nrow(results_clan_all), 5)){
     l <- l+4
 }
 
+## Rounding
 results_blp_ate_all      <- round(results_blp_ate_all2, digits = 3)
 results_blp_het_all      <- round(results_blp_het_all2, digits = 3)
 results_gates_tests_all  <- round(results_gates_tests_all2, digits = 3)
@@ -423,6 +490,8 @@ for(i in seq(1, nrow(results_clan_all2), 3)){
 
     l <- l+1
 }
+
+## C2) TABLES ##################################################################
 
 results_clan_final    <- matrix(NA, length(var_Y)*(length(var_affected)*3+1), length(index_ml_best)*3)
 results_gates_final   <- matrix(NA, length(var_Y)*3, length(index_ml_best)*3)
@@ -475,6 +544,7 @@ print(xtable(cbind(rownames(results_gates_final),results_gates_final)), include.
 print(xtable(cbind(rownames(results_ml_best_final),results_ml_best_final)),   include.rownames=FALSE,file=paste(name,"_BEST" ,"-",name_output,".txt",sep=""), digits=3)
 print(xtable(cbind(rownames(results_clan_final),results_clan_final)),   include.rownames=FALSE,file=paste(name,"_CLAN" ,"-",name_output,".txt",sep=""), digits=3)
 
+## C3) GRAPHS ##################################################################
 
 for(i in 1:length(var_Y)){
     if(length(ml_methods)>1){ par(mfrow=c(2,2)) }
@@ -529,11 +599,14 @@ rm(df,L,p,p_best,result,rownames_BEST,rownames_CLAN,rownames_GATES,U)
 rm(a,b,c,c2,i,j,k,l,label_ci_ate,label_ci_gates,label_crit,seq3,y_range,y_range2,group_factor)
 rm(results_blp_ate_all,results_blp_het_all,results_clan_all,results_gates_tests_all)
 
+## C4) DATA SAVING #############################################################
+
+## Data Timing
 time_end_an <- proc.time() - time_start_an
 print(time_end_an)
 
-# Save File
-save.image(file=paste(name, "_an.RData", sep=""))
+## Save File
+save.image(file=paste0(name, "_an.RData"))
 
-# Stop Cluster
+## Stop Cluster
 stopCluster(cl)

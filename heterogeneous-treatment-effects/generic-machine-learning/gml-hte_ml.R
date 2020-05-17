@@ -1,24 +1,28 @@
-#--------------------------------------------------------------------------------------------------------------------
-# This program obtains empirical results for the paper "Generic Machine Learning Discovery
-# and Classification Analysis of Heterogenous Treatment Effects in Randomized Experiments"
-# by V. CHERNOZHUKOV, M. DEMIRER, E. DUFLO, I. FERNANDEZ-VAL
-#--------------------------------------------------------------------------------------------------------------------
-# Authors:  V. CHERNOZHUKOV, M. DEMIRER, E. DUFLO, I. FERNANDEZ-VAL
-#--------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------#
+# This programme applies the Generic Machine Learning for Heterogeneous Treatment Effects
+# methodology from Chornozhukhov et al. 2019. The code has been modified from previous code
+# written by Demirer.
 # Several modifications have been made to make the code more flexible, including the introduction of
 # k-fold cross-validation and separating the machine learning code and analysis code into two files.
-#--------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------#
 # Authors:  Paul Brimble - Mind and Behaviour Research Group,
 #           Centre for the Study of African Economies (CSAE), University of Oxford
 # Email:    paul.brimble@bsg.ox.ac.uk
+#------------------------------------------------------------------------------#
+# Preamble for original code:
+# This program obtains empirical results for the paper "Generic Machine Learning Discovery
+# and Classification Analysis of Heterogenous Treatment Effects in Randomized Experiments"
+# by V. CHERNOZHUKOV, M. DEMIRER, E. DUFLO, I. FERNANDEZ-VAL
+# Authors:  V. CHERNOZHUKOV, M. DEMIRER, E. DUFLO, I. FERNANDEZ-VAL
+#------------------------------------------------------------------------------#
 
 # The code is split into two files:
 # 1) "ml" - machine learning estimation.
 # 2) "an" - analysis using inputs from ml.
 
-# The "ml" code returns an RData file to be used in the "an" code
+# The "gml-hte_ml" code returns an RData file to be used in the "gml_hte_an" code
 
-# The "an" code returns five outputs
+# The "gml_hte_an" code returns five outputs
 # 1) A plot for each outcome variable reporting ATE by quantile groups
 # 2) het_results: Latex table reporting ATE and heterogeneity loading coefficient
 # 3) test_results: A latex table reporting estimated ATE_group1 - ATE_group5 and its p-value
@@ -30,7 +34,7 @@
 #------------------------------------------------------------------------------#
 ## A) INPUT DECISIONS
 #------------------------------------------------------------------------------#
-# There are 15 INPUT blocks to assist with customising this programme.
+## There are 15 INPUT blocks to assist with customising this programme.
 
 ## A.1) LOAD PACKAGES ##########################################################
 rm(list=ls(all=TRUE))
@@ -83,17 +87,17 @@ var_D           <- rep("treatment", length(var_Y))      # vector of treatment va
 
 ## Cluster Variable [INPUT 8/15]
 tog_cluster     <- 1
-var_cluster     <- "" #var_cluster"          # if no cluster use cluster <- ""
+var_cluster     <- "cluster"  # replace with cluster variable name
 
 if(tog_cluster == 0){ var_clister <- ""}
 
 ## Fixed Effects Variables [INPUT 9/15]
-tog_fe1  <- 1        # set to 1 if there is a fixed effect
-tog_fe2  <- 1        # set to 1 if there is a second fixed effect
+tog_fe1  <- 1        # set to 1 if there is a fixed effect, otherwise 0
+tog_fe2  <- 1        # set to 1 if there is a second fixed effect, otherwise 0
 var_fe1 <- "fixedeffect1"   # replace with fixed effect variable name
 var_fe2 <- "fixedeffect2"   # replace with fixed effect variable name
 
-## Fixed Effects
+## Fixed Effects Factorisation
 if(tog_fe1 == 0){ var_fe1 <- "" }
 if(tog_fe2 == 0){ var_fe2 <- "" }
 if(tog_fe1 == 1){
@@ -113,7 +117,7 @@ if(tog_fe2 == 1){
 
 ## Covariates [INPUT 10/15]
 var_covariates     <- c("cov1", "cov2", "cov3", "cov4", "cov5")    # covariates for estimation
-tog_covariates_fe  <- 1         # set to 1 if covariates should include fixed effects
+tog_covariates_fe  <- 1         # set to 1 if covariates should include fixed effects, otherwise 0
 
 if(tog_covariates_fe == 1) {
     var_covariates     <- c(var_covariates,                            # final covariates with fixed effects
@@ -151,8 +155,8 @@ names_affected <- c("cov1_name","cov2_name","cov3_name")
 ## Model names. For a list of available model names in caret package see: http://topepo.github.io/caret/available-models.html
 
 ## Machine Learning Methods [INPUT 13/15]
-ml_methods       <- c("glmnet", "gbm", "pcaNNet", "rf")
-names_methods    <- c("Elastic Net", "Boosting", "Nnet", "Random Forest")
+ml_methods       <- c("glmnet", "gbm", "pcaNNet", "rf")     # list of machine learning methods, please select at least 2.
+names_methods    <- c("Elastic Net", "Boosting", "Nnet", "Random Forest")   # names for list
 
 ## A list of arguments for models used in the estimation
 ml_args         <- list(svmLinear2=list(type='eps-regression'), svmLinear=list(type='nu-svr'), svmPoly=list(type='nu-svr'), gbm=list(verbose=FALSE), rf=list(ntree=1000), gamboost=list(baselearner='btree'), avNNet=list(verbose = 0, linout = TRUE, trace = FALSE), pcaNNet=list(linout = TRUE, trace = FALSE, MaxNWts=100000, maxit=10000), nnet=list(linout = TRUE, trace = FALSE, MaxNWts=100000, maxit=10000))
@@ -167,6 +171,7 @@ ml_cv         <- c(2, 2,2, 2)                                          # the num
 ml_cvrep        <- c(2, 2,2, NA)                                       # number of iteration in repeated cross-validations
 
 ## Machine Learning Tuning Parameters [INPUT 15/15]
+
 ## If there is a parameter of the model that user doesn't want to choose with cross validation,
 ## it should be set using tune_param variable. Below mtry of random forest is set to 5
 ## for glmnet we want to choose both tuning parameters using cross validation so it is set to NULL
