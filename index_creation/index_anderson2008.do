@@ -67,7 +67,7 @@ if r(N) > 0 {	// if exists, continue
 		** Calculate Weights
 		matrix unity  = J(1, rowsof(invcov), 1)
 		matrix weights = unity * invcov		// simple column sum to get w_jk from Appendix A
-		
+
 		** Calculate Weighted Sums
 		svmat weights, names(temp_weight_)
 		forvalues count = 1/`nvars' {
@@ -80,9 +80,9 @@ if r(N) > 0 {	// if exists, continue
 		egen 	temp_index_weight 	= rowtotal(temp3_weight_*)			// W_ij from Appendix A
 		replace temp_index			= temp_index / temp_index_weight	// s_ij from Appendix A
 
-		** Normalise Index Again?
-		*su 		temp_index if ( `index_treat' == 0 )
-		*replace temp_index = temp_index / r(sd)
+		** Normalise Index
+		*su 		temp_index if ( `index_treat' == `index_ctrl' )
+		*replace 	temp_index = (temp_index - r(mean)) / r(sd)
 
 		** Create or Replace Index
 		cap gen 	`index_name' = temp_index	if `index_sample'
