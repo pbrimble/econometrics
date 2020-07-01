@@ -1,2 +1,2 @@
 # machine-learning
-Various code for machine-learning methods with applications to economics.
+Various code with applications to econometrics.
