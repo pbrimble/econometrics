@@ -38,7 +38,7 @@ if r(N) > 0 {	// if exists, continue
 	}
 	local nvars = `i'
 
-	** Standardize Variables with respect to Control Group
+	** Standardize Variables With Respect To Control Group
 	local index_var_missing ""
 	forvalues count = 1/`nvars' {
 		su temp_`count'  		if `index_sample' & `index_treat' == `index_ctrl' // always by control group
