@@ -1,2 +1,2 @@
-# machine-learning
-Various code with applications to econometrics.
+# econometrics
+various code with applications to econometrics.
