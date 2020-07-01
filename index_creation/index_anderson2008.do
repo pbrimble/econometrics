@@ -15,9 +15,6 @@ If the normalise to ctrl local is not missing, then demeaning and weights calcul
 will be limited to the control group only. The standard deviation will always be
 calculated using the control group.
 */
-local index_varlist bel_asp_educ bel_asp_inc bel_asp_asset bel_asp_educ_eld
-local index_name	bel_asp_index
-local index_treat	treatment_main
 
 ** Defaults
 if  missing("`index_sample'") 	local index_sample 		"1 == 1"		// sample identifier
@@ -34,19 +31,19 @@ if r(N) > 0 {	// if exists, continue
 	local i = 0
 	foreach x of local index_varlist {
 		local i = `i' + 1
-		gen temp_`i' = `x'
+		gen temp1_`i' = `x'		if `index_sample'		// limit to relevant sample
 	}
 	local nvars = `i'
 
 	** Standardize Variables With Respect To Control Group
 	local index_var_missing ""
 	forvalues count = 1/`nvars' {
-		su temp_`count'  		if `index_sample' & `index_treat' == `index_ctrl' // always by control group
-		cap local sdev  = r(sd)
-		su temp_`count' 		if `index_sample' &	`index_spec'
+		qui su temp1_`count' 		if `index_spec'					 // sometimes by control group
 		cap local mean  = r(mean)
-		if r(N) > 0	gen temp_`count'_z  = (temp_`count' - `mean') / `sdev'
-		else local index_var_missing `index_var_missing' `count' " " // check if entire variable is missing
+		qui su temp1_`count'  		if `index_treat' == `index_ctrl' // always by control group
+		cap local sdev  = r(sd)
+		if r(N) > 0	gen temp1_`count'_z  = (temp1_`count' - `mean') / `sdev'
+		else local index_var_missing `index_var_missing' `count' " " // check if entire variable is missing for control group
 	}
 
 	** Check if All Variables Exist
@@ -56,8 +53,8 @@ if r(N) > 0 {	// if exists, continue
 		forvalues i = 1/`nvars' {
 			forvalues j = 1/`nvars' {
 				if `i' >= `j' {
-					egen   temp_cov_`i'`j' = sum(temp_`i'_z * temp_`j'_z) if `index_spec'
-					su 	   temp_cov_`i'`j'
+					egen   temp_cov_`i'`j' = sum(temp1_`i'_z * temp1_`j'_z) if `index_spec'
+					qui su temp_cov_`i'`j'
 					matrix cov[`i',`j'] = r(mean)
 					matrix cov[`j',`i'] = r(mean)
 				}
@@ -71,8 +68,8 @@ if r(N) > 0 {	// if exists, continue
 		** Calculate Weighted Sums
 		svmat weights, names(temp_weight_)
 		forvalues count = 1/`nvars' {
-			gen temp2_`count'  = temp_`count'_z * temp_weight_`count'[1] if `index_sample'
-			gen temp3_weight_`count' = temp_weight_`count'[1] if !missing(temp_`count'_z)
+			gen temp2_`count'  = temp1_`count'_z * temp_weight_`count'[1]
+			gen temp3_weight_`count' = temp_weight_`count'[1] if !missing(temp1_`count'_z)
 		}
 
 		** Calculate Temporary Index
@@ -87,17 +84,18 @@ if r(N) > 0 {	// if exists, continue
 		** Create or Replace Index
 		cap gen 	`index_name' = temp_index	if `index_sample'
 		cap replace `index_name' = temp_index	if `index_sample'
-	}
 
+		** Drop Temporary Variables
+		cap drop temp2_*
+		cap drop temp3_*
+		cap drop temp_cov_*
+		cap drop temp_weight_*
+		cap drop temp_index*
+	}
 	** Drop Temporary Variables
-	cap drop temp_*
-	cap drop temp2_*
-	cap drop temp3_*
-	cap drop temp_cov_*
-	cap drop temp_weight_*
-	cap drop temp_index*
+	cap drop temp1_*
 
 	** Warning Message if Missing Variables
 	if !missing("`index_var_missing'") di "error: variables `index_var_missing'missing"
-
 }
+else di "error: sample missing"
