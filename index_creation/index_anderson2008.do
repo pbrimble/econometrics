@@ -18,7 +18,7 @@ will be limited to the control group only
 if  missing("`index_sample'") 	local index_sample 	"1 == 1"					// sample identifier
 if  missing("`index_treat'") 	local index_treat  	"treatment"					// treatment variable
 if  missing("`index_name'") 	local index_name   	"index_name"				// variable name
-if !missing("`index_norm'")		local index_norm	" & `index_treat' == 0 "	// normalise to control group always
+if !missing("`index_norm'")		local index_norm	" `index_treat' == 0 "	// normalise to control group always
 else							local index_norm	"1 == 1"
 
 ** Check if Sample Exists
@@ -65,12 +65,12 @@ if r(N) > 0 {	// if exists, continue
 		svmat weights, names(temp_weight_)
 		forvalues count = 1/`nvars' {
 			gen temp2_`count'  = temp_`count'_z * temp_weight_`count'[1] if `index_sample'
-			gen temp2_weight_`count' = temp_weight_`count'[1] if !missing(temp_`count'_z)
+			gen temp3_weight_`count' = temp_weight_`count'[1] if !missing(temp_`count'_z)
 		}
 
 		** Calculate Temporary Index
 		egen 	temp_index 			= rowtotal(temp2_* )		// weighted sum from Appendix A
-		egen 	temp_index_weight 	= rowtotal(temp2_weight_*)	// W_ij from Appendix A
+		egen 	temp_index_weight 	= rowtotal(temp3_weight_*)	// W_ij from Appendix A
 		replace temp_index			= temp_index / temp_index_weight
 
 		** Normalise Index?
@@ -85,6 +85,7 @@ if r(N) > 0 {	// if exists, continue
 	** Drop Temporary Variables
 	cap drop temp_*
 	cap drop temp2_*
+	cap drop temp3_*
 	cap drop temp_cov_*
 	cap drop temp_weight_*
 	cap drop temp_index*
