@@ -23,7 +23,7 @@ if r(N) > 0 {	// if exists, continue
 	local i = 0
 	foreach x of local index_varlist {
 		local i = `i' + 1
-		gen temp1_`i' = `x'		if `index_sample'		// limit to relevant sample
+		gen temp1_`i' = `x'		if `index_sample'		// sample-restricted variables
 	}
 	local nvars = `i'
 
@@ -31,7 +31,8 @@ if r(N) > 0 {	// if exists, continue
 	local index_var_missing ""
 	forvalues count = 1/`nvars' {
 		qui su temp1_`count'  		if `index_treat' == `index_ctrl' // normalise by control group
-		if r(N) > 0	gen temp1_`count'_z  = (temp1_`count' - r(mean)) / r(sd)
+		if r(N) > 0	gen temp2_`count'  = (temp1_`count' - r(mean)) / r(sd)
+		// normalised sample-restricted variables
 		else local index_var_missing `index_var_missing' `count' " " // check if entire variable is missing for control group
 	}
 
@@ -42,20 +43,15 @@ if r(N) > 0 {	// if exists, continue
 		forvalues i = 1/`nvars' {
 			forvalues j = 1/`nvars' {
 				if `i' >= `j' {
-					** Temporary (Non-Sample-Adjusted Pairwise Covariance Matrix)
-					egen   temp_cov_`i'`j' = sum(temp1_`i'_z * temp1_`j'_z) if  `index_treat' == `index_ctrl'
-					qui su temp_cov_`i'`j'
-					matrix cov[`i',`j'] = r(mean)
-					matrix cov[`j',`i'] = r(mean)
-					* Temporary (Sample-Adjusted Pairwise Covariance Matrix)
-					*correl temp1_`i'_z temp1_`j'_z if `index_treat' == `index_ctrl', covariance
-					*matrix cov[`i',`j'] = r(cov_12)
-					*matrix cov[`j',`i'] = r(cov_12)
+					** (Sample-Adjusted Pairwise Covariance Matrix)
+					correl temp2_`i' temp2_`j' if `index_treat' == `index_ctrl', covariance
+					matrix cov[`i',`j'] = r(cov_12)
+					matrix cov[`j',`i'] = r(cov_12)
 				}
 			}
 		}
 		* Temporary (Standard Covariance Matrix)
-		*correl temp1_*_z if  `index_treat' == `index_ctrl' , covariance
+		*correl temp2_* 	if  `index_treat' == `index_ctrl' , covariance
 		*matrix cov = r(C)
 
 		matrix invcov = syminv(cov)			// inverse Sigma matrix defined in Appendix A
@@ -64,15 +60,17 @@ if r(N) > 0 {	// if exists, continue
 		matrix weights = unity * invcov		// simple column sum to get w_jk from Appendix A
 
 		** Calculate Weighted Sums
-		svmat weights, names(temp_weight_)
+		svmat weights, names(temp3_) 		// variable weights
 		forvalues count = 1/`nvars' {
-			gen temp2_`count'  = temp1_`count'_z * temp_weight_`count'[1]
-			gen temp3_weight_`count' = temp_weight_`count'[1] if !missing(temp1_`count'_z)
+			gen temp4_`count' = temp2_`count' * temp3_`count'[1]
+			// product of weights and normalised sample-restricted variables
+			gen temp5_`count' = temp3_`count'[1] if !missing(temp2_`count')
+			// observation specific weighted sums
 		}
 
 		** Calculate Temporary Index
-		egen 	temp_index 			= rowtotal(temp2_* )				// weighted sum from Appendix A
-		egen 	temp_index_weight 	= rowtotal(temp3_weight_*)			// W_ij from Appendix A
+		egen 	temp_index 			= rowtotal(temp4_* )				// weighted sum from Appendix A
+		egen 	temp_index_weight 	= rowtotal(temp5_*)					// W_ij from Appendix A
 		replace temp_index			= temp_index / temp_index_weight	// s_ij from Appendix A
 
 		** Normalise Index
@@ -83,15 +81,14 @@ if r(N) > 0 {	// if exists, continue
 		cap gen 	`index_name' = temp_index	if `index_sample'
 		cap replace `index_name' = temp_index	if `index_sample'
 
-		** Drop Temporary Variables
-		cap drop temp2_*
-		cap drop temp3_*
-		cap drop temp_cov_*
-		cap drop temp_weight_*
-		cap drop temp_index*
 	}
 	** Drop Temporary Variables
-	cap drop temp1_*
+	cap drop temp1_*		// sample-restricted variables
+	cap drop temp2_*		// normalised sample-restricted variables
+	cap drop temp3_*		// variable weights
+	cap drop temp4_*		// product of weights and normalised sample-restricted variables
+	cap drop temp5_*		// observation specific weights
+	cap drop temp_index*	// temporary index
 
 	** Warning Message if Missing Variables
 	if !missing("`index_var_missing'") di "error: variables `index_var_missing'missing"
