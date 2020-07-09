@@ -43,14 +43,14 @@ if r(N) > 0 {	// if exists, continue
 		forvalues i = 1/`nvars' {
 			forvalues j = 1/`nvars' {
 				if `i' >= `j' {
-					** (Sample-Adjusted Pairwise Covariance Matrix)
+					** Sample-Adjusted Pairwise Covariance Matrix)
 					correl temp2_`i' temp2_`j' if `index_treat' == `index_ctrl', covariance
 					matrix cov[`i',`j'] = r(cov_12)
 					matrix cov[`j',`i'] = r(cov_12)
 				}
 			}
 		}
-		* Temporary (Standard Covariance Matrix)
+		** Standard Covariance Matrix
 		*correl temp2_* 	if  `index_treat' == `index_ctrl' , covariance
 		*matrix cov = r(C)
 
