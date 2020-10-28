@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 # This programme applies the Generic Machine Learning for Heterogeneous Treatment Effects
-# methodology from Chornozhukhov et al. 2019. The code has been modified from previous code written by Demirer.
+# methodology from Chernozhukhov et al. 2019. The code has been modified from previous code written by Demirer.
 # Several modifications have been made to make the code more flexible, including the introduction of
 # k-fold cross-validation and separating the machine learning code and analysis code into two files.
 #------------------------------------------------------------------------------#
@@ -54,7 +54,7 @@ set.seed(1211);
 source("ML_Functions.R")    # source ML_Functions file
 
 ## Set Clusters [INPUT 2/15]
-num_clusters <- 8           # number of clusters for parallel procesing
+num_clusters <- detectCores(all.tests = FALSE, logical = TRUE) - 1           # number of clusters for parallel procesing
 cl   <- makeCluster(num_clusters, outfile="")
 registerDoParallel(cl)
 
@@ -85,14 +85,14 @@ var_Y           <- c("var1", "var2", "var3")                 # vector of outcome
 var_D           <- rep("treatment", length(var_Y))      # vector of treatment variables
 
 ## Cluster Variable [INPUT 8/15]
-tog_cluster     <- 1
+tog_cluster     <- 0    # set to 1 if there is a cluster variable for standard errors
 var_cluster     <- "cluster"  # replace with cluster variable name
 
-if(tog_cluster == 0){ var_clister <- ""}
+if(tog_cluster == 0){ var_cluster <- ""}
 
 ## Fixed Effects Variables [INPUT 9/15]
-tog_fe1  <- 1        # set to 1 if there is a fixed effect, otherwise 0
-tog_fe2  <- 1        # set to 1 if there is a second fixed effect, otherwise 0
+tog_fe1  <- 0        # set to 1 if there is a fixed effect, otherwise 0
+tog_fe2  <- 0        # set to 1 if there is a second fixed effect, otherwise 0
 var_fe1 <- "fixedeffect1"   # replace with fixed effect variable name
 var_fe2 <- "fixedeffect2"   # replace with fixed effect variable name
 
@@ -116,7 +116,7 @@ if(tog_fe2 == 1){
 
 ## Covariates [INPUT 10/15]
 var_covariates     <- c("cov1", "cov2", "cov3", "cov4", "cov5")    # covariates for estimation
-tog_covariates_fe  <- 1         # set to 1 if covariates should include fixed effects, otherwise 0
+tog_covariates_fe  <- 0         # set to 1 if covariates should include fixed effects, otherwise 0
 
 if(tog_covariates_fe == 1) {
     var_covariates     <- c(var_covariates,                            # final covariates with fixed effects
@@ -125,7 +125,7 @@ if(tog_covariates_fe == 1) {
 }
 
 ## Additional Control Variables [INPUT 11/15]
-tog_var_add    <- 1                          # if no additional variables <- 0
+tog_var_add    <- 0                          # set to 1 if additional control variables for regressions
 var_add        <- c("addvar1","addvar2")     # easier to make this list exhaustive (can reduce additional variables in analysis file)
 
 ## Additional Variable Form

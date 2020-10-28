@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 # This programme applies the Generic Machine Learning for Heterogeneous Treatment Effects
-# methodology from Chornozhukhov et al. 2019. The code has been modified from previous code written by Demirer.
+# methodology from Chernozhukhov et al. 2019. The code has been modified from previous code written by Demirer.
 # Several modifications have been made to make the code more flexible, including the introduction of
 # k-fold cross-validation and separating the machine learning code and analysis code into two files.
 #------------------------------------------------------------------------------#
@@ -54,7 +54,7 @@ set.seed(1211);
 #setwd()                    # set working directory
 
 ## Set Clusters [INPUT 2/10]
-num_clusters <- 4           # number of clusters for parallel procesing
+num_clusters <- detectCores(all.tests = FALSE, logical = TRUE) - 1           # number of clusters for parallel procesing
 cl   <- makeCluster(num_clusters, outfile="")
 registerDoParallel(cl)
 
@@ -81,27 +81,29 @@ num_alpha      <- 0.05          # signifigance level
 num_crit <- qnorm(1-num_alpha/2) # critical value from significance level
 
 ## Fixed Effects  (Change if Necessary) [INPUT 7/10]
-tog_fe_change  <- 0             # if like to change fixed effects, set to 1
+tog_fe_change  <- 0             # set to 1 to change fixed effects from ml stage
 if(tog_fe_change == 1){
     tog_fe1 <- 0
     tog_fe2 <- 0
     var_fe1 <- "fixedeffect1"   # replace with fixed effect variable name
     var_fe2 <- "fixedeffect2"   # replace with fixed effect variable name
 }
-
+form_fe_plus <- "0"
 if(tog_fe1 == 0){ var_fe1 <- "" }
+if(tog_fe1 == 1){ form_fe_plus <- "" }
 if(tog_fe2 == 0){ var_fe2 <- "" }
+if(tog_fe2 == 1){ form_fe_plus <- "+" }
 
 ## Cluster (Change if Necessary) [INPUT 8/10]
-tog_fe_change  <- 0             # if like to change cluster variable, set to 1
+tog_fe_change  <- 0             # set to 1 to change cluster variable
 if(tog_fe_change == 1){
     tog_cluster <- 0
     var_cluster <- "cluster"
 }
-if(tog_cluster == 0){ var_clister <- ""}
+if(tog_cluster == 0){ var_cluster <- ""}
 
 ## Additional Control Variables (Change if Necessary) [INPUT 9/10]
-tog_var_add_change  <- 0                         # if like to change additional variables, set to 1
+tog_var_add_change  <- 0                         # set to 1 to change additional variables
 if(tog_var_add_change == 1){
     var_add        <- c("addvar1","addvar2")     # easier to make this list exhaustive (can reduce additional variables in analysis file)
     form_var_add   <- ""
@@ -109,7 +111,7 @@ if(tog_var_add_change == 1){
 }
 
 ## CLANs (Change if Necessary) [INPUT 10/10]
-tog_var_affected_change <- 0                    # if like to change CLAN variables, set to 1
+tog_var_affected_change <- 0                    # set to 1 to change CLAN variables
 if(tog_var_affected_change == 1){
     var_affected       <- c("cov1","cov2")
     names_affected <- c("cov1_name","cov2_name")
@@ -221,18 +223,18 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
             if(var(dataest$S) == 0){ dataest$S <- dataest$S + rnorm(length(dataest$S),  mean=0, sd=0.1) }
 
             ## Estimation of GATES
-            form1 <- as.formula(paste(y, "~", "B+S", form_var_group, form_var_add, "|",  var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
+            form1 <- as.formula(paste(y, "~", "B+S", form_var_group, form_var_add, "|",  var_fe1, form_fe_plus, var_fe2, "| 0 |", var_cluster, sep=""))
 
             a <- tryCatch({
             a <- felm(form1, data=dataest, weights=dataest$weight)
             },error=function(e){
                 if(tog_silence == 0){cat("ERROR :",ml_methods[l], t, i, "\n")}
-                form1  <- as.formula(paste(y, "~", form_var_group, form_var_add, "|", var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
+                form1  <- as.formula(paste(y, "~", form_var_group, form_var_add, "|", var_fe1, form_fe_plus, var_fe2, "| 0 |", var_cluster, sep=""))
                 reg    <- felm(form1, data=dataest, weights=dataest$weight)
                 return(reg)
             }, warning = function(war) {
                 if(tog_silence == 0){cat("WARNING :",ml_methods[l], t, i, "\n")}
-                form1  <- as.formula(paste(y, "~", form_var_group, " | ", var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
+                form1  <- as.formula(paste(y, "~", form_var_group, " | ", var_fe1, form_fe_plus, var_fe2, "| 0 |", var_cluster, sep=""))
 
                 reg    <- felm(form1, data=dataest, weights=dataest$weight)
                 return(reg)
@@ -301,18 +303,18 @@ results_an <- foreach(t = 1:num_reps, .combine='cbind', .inorder=FALSE, .package
             dataest$d_ort <- I((as.numeric(dataest[,d])-md_x))
 
             ## Estimation of BLP
-            form1 <- as.formula(paste(y, "~", "B+S+d_ort+S_ort", form_var_add, "|", var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
+            form1 <- as.formula(paste(y, "~", "B+S+d_ort+S_ort", form_var_add, "|", var_fe1, form_fe_plus, var_fe2, "| 0 |", var_cluster, sep=""))
 
             a  <- tryCatch({
                 a  <- felm(form1, data=dataest, weights=dataest$weight)
             },error=function(e){
                 if(tog_silence == 0){cat("ERROR2 :",ml_methods[l], t, i, "\n")}
-                form1 <- as.formula(paste(y, "~", "d_ort+S_ort", form_var_add, "|", var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
+                form1 <- as.formula(paste(y, "~", "d_ort+S_ort", form_var_add, "|", var_fe1, form_fe_plus, var_fe2, "| 0 |", var_cluster, sep=""))
                 reg   <- felm(form1, data=dataest, weights=dataest$weight)
                 return(reg)
             }, warning = function(war) {
                 if(tog_silence == 0){cat("WARNING2 :",ml_methods[l], t, i, "\n")}
-                form1 <- as.formula(paste(y, "~", "d_ort+S_ort| ", var_fe1, "+", var_fe2, "| 0 |", var_cluster, sep=""))
+                form1 <- as.formula(paste(y, "~", "d_ort+S_ort| ", var_fe1, form_fe_plus, var_fe2, "| 0 |", var_cluster, sep=""))
                 reg   <- felm(form1, data=dataest, weights=dataest$weight)
                 return(reg)
             })
@@ -479,7 +481,7 @@ for(i in seq(1, nrow(results_clan_all2), 3)){
 
         results_blp_het2[i,]      <- format(round(results_blp_het_all[k,],max(0,4-nchar(floor(abs(results_blp_het_all[k,]))))) , nsmall=pmax(0,4-nchar(floor(results_blp_het_all[k,]))))
         results_blp_het2[i+1,]    <- sapply(seq(1:ncol(results_blp_het_all)), function(x) paste("(", format(round(results_blp_het_all[k+1,x], pmax(0,4-nchar(floor(abs(results_blp_het_all[k+1,x]))))) , nsmall=pmax(0,4-nchar(floor(abs(results_blp_het_all[k+1,x]))))), ",", format(round(results_blp_het_all[k+2,x],pmax(0,4-nchar(floor(abs(results_blp_het_all[k+2,x]))))) , nsmall=pmax(0,4-nchar(floor(abs(results_blp_het_all[k+2,x]))))), ")", sep=""))
-        results_blp_het2[i+2,]    <- paste("[", format(results_blp_het_all[k+3,], nsmall=max(0,4-nchar(floor(abs(results_blp_het_all[k+3,]))))), "]", sep="")
+        results_blp_het2[i+2,]    <- paste("[", format(results_blp_het_all[k+3,], nsmall=pmax(0,4-nchar(floor(abs(results_blp_het_all[k+3,]))))), "]", sep="")
     }
     if(i < nrow(results_gates_tests2)){
         results_gates_tests2[i,]    <- format(round(results_gates_tests_all[k,],pmax(0,4-nchar(floor(abs(results_gates_tests_all[k,]))))) , nsmall=pmax(0,4-nchar(floor(results_gates_tests_all[k,]))))
@@ -569,6 +571,11 @@ for(i in 1:length(var_Y)){
             group_factor <- paste0(group_factor,",","2")
         }
         group_factor = factor(c(group_factor))
+        df <- data.frame(x =1:num_groups,
+                         F =results_gates_all[(3*num_groups*(i-1)+1):(3*num_groups*(i-1)+num_groups),j],
+                         L =results_gates_all[(3*num_groups*(i-1)+num_groups+1):(3*num_groups*(i-1)+2*num_groups),j],
+                         U =results_gates_all[(3*num_groups*(i-1)+2*num_groups+1):(3*num_groups*(i-1)+3*num_groups),j],
+                         group = group_factor)
 
         label_crit <- (1-2*num_alpha)*100
         label_ci_gates <- paste0(label_crit,"% CI (GATES)")
@@ -580,8 +587,8 @@ for(i in 1:length(var_Y)){
             geom_errorbar(data=df, aes(ymax = U, ymin = L ,x=x, width=0.7, colour="GATES"), show.legend = TRUE) +
             geom_line(aes( x, y, linetype = cutoff, colour='ATE' ),ATE, linetype = 2) +
             geom_line(aes( x, y, linetype = cutoff, colour=label_ci_ate ), U, linetype = 2) +
-            geom_line(aes( x, y, linetype = cutoff ), L, linetype = 2, color="red") +
-            scale_colour_manual(values = c("red", "black", "blue", "black"),
+            geom_line(aes( x, y, linetype = cutoff, colour=label_ci_ate ), L, linetype = 2) +
+            scale_colour_manual(values = c("blue", "red", "black", "black"),
                                 breaks=c('ATE',label_ci_ate,"GATES",label_ci_gates),
                                 guide = guide_legend(override.aes = list(
                                 linetype = c("dashed", "dashed"  ,"blank", "solid"),
