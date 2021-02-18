@@ -1,0 +1,10 @@
+v 1
+d pairmatch: Stata package to identify unique nearest pairwise matching
+d
+d pairmatch implements unique nearest pairwise matching along based on a
+d supplied numerical variable.
+d
+d Package by Paul Brimble, University of Oxford
+d
+f pairmatch.ado
+f pairmatch.sthlp
