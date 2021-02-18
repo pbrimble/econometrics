@@ -1,0 +1,6 @@
+v 1
+d Stata package by Paul Brimble
+
+d Packages in this repository are listed below:
+
+p pairmatch Stata programme to identify unique nearest pairwise matching
