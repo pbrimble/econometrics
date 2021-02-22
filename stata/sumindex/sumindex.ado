@@ -1,6 +1,7 @@
 ********************************************************************************
 *** SUMMARY INDEX ***
 ********************************************************************************
+program drop sumindex
 program def sumindex, byable(recall, noheader)
 	syntax varlist(numeric) [if] [in], GENerate(name) ///
 		[ Base(string asis) Replace Pairwise Normalise ]
@@ -44,11 +45,9 @@ program def sumindex, byable(recall, noheader)
 		}
 	}
 
-
 	****************************************************************************
-	*** B) INDEX CREATION ***
+	*** B) NORMALISE VARIABLES ***
 	****************************************************************************
-
 	** Index Components
 	local N: word count `varlist'
 
@@ -67,12 +66,20 @@ program def sumindex, byable(recall, noheader)
 		}
 	}
 
-	** Complete Program if No Base Values
+	****************************************************************************
+	*** C) INDEX CREATION ***
+	****************************************************************************
+	** Display Warning if No Base Values
 	if `nobasevalues' == 1 {
 		local lbl_error = "warning: no base group observations; "	///
 						+ "programme will return missing index"
 		display "`lbl_error'"
 	}
+	** Provide Normalised Z-Scores if Only One Index Component
+	else if `N' == 1 {
+		replace `generate' = `a1' if `touse'
+	}
+	** Create Inverse Covariance Weighted Index
 	else {
 		** Temporary Matrices
 		tempname cov invcov unity weights
