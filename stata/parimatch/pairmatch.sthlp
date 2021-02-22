@@ -9,7 +9,8 @@ help for {hi:pairmatch}
 
 
 {p 4 8 2}{cmd:pairmatch} [{it:varlist}] {cmd:using} {cmd:,}
-	{cmdab:var_near(}{it:varname}{cmd:)} [ {cmdab:lim:it(}{it:real}{cmd:)} {cmdab:g:enmatch(}{it:newvarname}{cmd:)}] {p_end}
+	{cmdab:var_near(}{it:varname}{cmd:)} [ {cmdab:lim:it(}{it:real}{cmd:)}
+	{cmdab:g:enmatch(}{it:newvarname}{cmd:)} {it:mergeoptions}] {p_end}
 
 
 {title:Description}
