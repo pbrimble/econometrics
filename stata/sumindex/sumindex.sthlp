@@ -9,7 +9,7 @@ help for {hi:sumindex}
 
 
 {p 4 8 2}{cmd:sumindex} [{it:varlist}] {cmd:,}
-	{cmdab:g:enerate(}{it:varname}{cmd:)} [{cmdab:b:ase(}{it:condition}{cmd:)}
+	{cmdab:gen:erate(}{it:varname}{cmd:)} [{cmdab:b:ase(}{it:condition}{cmd:)}
 	{cmdab:r:eplace} {cmdab:n:ormalise} {cmdab:p:airwise}] {p_end}
 
 

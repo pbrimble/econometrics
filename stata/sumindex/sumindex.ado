@@ -2,7 +2,7 @@
 *** SUMMARY INDEX ***
 ********************************************************************************
 program def sumindex, byable(recall)
-	syntax varlist(numeric) [if] [in], Generate(name) ///
+	syntax varlist(numeric) [if] [in], GENerate(name) ///
 		[ Base(string asis) Replace Pairwise Normalise ]
 
 	****************************************************************************
