@@ -1,0 +1,6 @@
+v 1
+d Stata package by Paul Brimble
+
+d Packages in this repository are listed below:
+
+p sumindex Stata programme to create a summary index as in Anderson (2008).

@@ -1,0 +1,9 @@
+v 1
+d sumindex: Stata package to create a summary index as in Anderson (2008).
+d
+d sumindex creates a summary index as in Anderson (2008) using inverse-covariance weights.
+d
+d Package by Paul Brimble, University of Oxford
+d
+f sumindex.ado
+f sumindex.sthlp
