@@ -73,6 +73,7 @@ program def sumindex, byable(recall, noheader)
 		local lbl_error = "warning: no base group observations; "	///
 						+ "programme will return missing index"
 		display "`lbl_error'"
+		replace `generate' = . if `touse'
 	}
 	** Provide Normalised Z-Scores if Only One Index Component
 	else if `N' == 1 {
