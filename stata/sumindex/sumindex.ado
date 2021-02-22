@@ -1,7 +1,6 @@
 ********************************************************************************
 *** SUMMARY INDEX ***
 ********************************************************************************
-program drop sumindex
 program def sumindex, byable(recall, noheader)
 	syntax varlist(numeric) [if] [in], GENerate(name) ///
 		[ Base(string asis) Replace Pairwise Normalise ]
