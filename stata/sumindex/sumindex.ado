@@ -3,7 +3,7 @@
 ********************************************************************************
 program def sumindex, byable(recall, noheader)
 	syntax varlist(numeric) [if] [in], GENerate(name) ///
-		[ Base(string asis) Replace Pairwise Normalise ]
+		[ Base(string asis) Replace NOPairwise NORMalise ]
 
 	****************************************************************************
 	*** A) PRElIMINARIES ***
@@ -55,9 +55,21 @@ program def sumindex, byable(recall, noheader)
 	local nobasevalues = 0
 	forvalues n = 1/`N' {
 		tempvar a`n'
-		qui summarize ``n'' if `tousebase'
-		if r(N) > 0 {
-			qui gen `a`n'' = (``n'' - r(mean)) / r(sd) if `touse'
+		** Obtain Mean and Standard Deviation
+		if "`normalise'" == "" {
+			qui summarize ``n'' if `touse'
+			local mean = r(mean)
+			qui summarize ``n'' if `tousebase'
+			local sd = r(sd)
+		}
+		else {
+			qui summarize ``n'' if `tousebase'
+			local mean = r(mean)
+			local sd = r(sd)
+		}
+		** Check If Sufficient Observations
+		if r(N) > 1 {
+			qui gen `a`n'' = (``n'' - `mean') / `sd' if `touse'
 		}
 		else {
 			local nobasevalues = 1
@@ -85,25 +97,35 @@ program def sumindex, byable(recall, noheader)
 		tempname cov invcov unity weights
 
 		** Make Covariance Matrix
-		if "`pairwise'" == "" {
-			local A = ""
-			forvalues n = 1/`N' {
-				local A = "`A' `a`n''"
-			}
-			qui correl `A' if `tousebase'
-			matrix `cov' = r(C)
-		}
-		else {
+		if "`nopairwise'" == 0 {
 			matrix `cov' = I(`N')
 			forvalues i = 1/`N' {
 				forvalues j = 1/`N' {
 					if `i' >= `j' {
-						qui correl `a`i'' `a`j'' if `tousebase', covariance
+						if "`normalise'" == "" {
+							qui correl `a`i'' `a`j'' if `touse', covariance
+						}
+						else {
+							qui correl `a`i'' `a`j'' if `tousebase', covariance
+						}
 						matrix `cov'[`i',`j'] = r(cov_12)
 						matrix `cov'[`j',`i'] = r(cov_12)
 					}
 				}
 			}
+		}
+		else {
+			local A = ""
+			forvalues n = 1/`N' {
+				local A = "`A' `a`n''"
+			}
+			if "`normalise'" == "" {
+				qui correl `A' if `touse'
+			}
+			else {
+				qui correl `A' if `tousebase'
+			}
+			matrix `cov' = r(C)
 		}
 
 		** Calculate Weights
