@@ -97,7 +97,7 @@ program def sumindex, byable(recall, noheader)
 		tempname cov invcov unity weights
 
 		** Make Covariance Matrix
-		if "`nopairwise'" == 0 {
+		if "`nopairwise'" == "" {
 			matrix `cov' = I(`N')
 			forvalues i = 1/`N' {
 				forvalues j = 1/`N' {
