@@ -69,7 +69,7 @@ program define pairmatch
 		di as err "`lbl_error'"
 		exit 198
 	}
-	sort 	 `vars_full'
+	sort 	 `vars_full', stable
 	cap isid `vars_full' // check uniqueness
 	if _rc {
 		di as err "Variables: `vars_full' not unique in using dataset"
