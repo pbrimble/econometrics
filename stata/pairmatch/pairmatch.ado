@@ -55,6 +55,12 @@ program define pairmatch
 	local vars_full `"`varlist' `var_near'"'
 
 	** Preserve Current Main File
+	sort 	 `vars_full', stable
+	cap isid `vars_full' // check uniqueness
+	if _rc {
+		di as err "Variables: `vars_full' not unique in main dataset"
+		error 459
+	}
 	tempfile  dta_main_full
 	qui save `dta_main_full'
 
