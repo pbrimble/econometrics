@@ -8,8 +8,9 @@ help for {hi:pairmatch}
 {title: Pairwise Nearest Matching }
 
 
-{p 4 8 2}{cmd:pairmatch} [{it:varlist}] {cmd:using} {cmd:,}
+{p 4 8 2}{cmd:pairmatch} [{it:varlist}] {cmd:using} {it:filename} {cmd:,}
 	{cmdab:var_near(}{it:varname}{cmd:)} [ {cmdab:lim:it(}{it:real}{cmd:)}
+	{cmdab:sign:ed(}{it:string}{cmd:)} {cmdab:order:ing(}{it:string}{cmd:)}
 	{cmdab:g:enmatch(}{it:newvarname}{cmd:)} {it:mergeoptions}] {p_end}
 
 
@@ -27,7 +28,13 @@ tables that have rounded or approximated values on the merging variable of inter
 {p 0 4}{cmd:var_near()} is required and specifies the variable in the master and using datasets that is to be
 matched as closely as possible. {it:varlist} {cmd:var_near()} must be unique in both the master and using dataset.{p_end}
 
-{p 0 4}{cmd:limit()} is optional and specifies a limit on the maximum distance between any pair of observations in units of var_near. {p_end}
+{p 0 4}{cmd:limit()} is optional and specifies a limit on the maximum distance between any pair of observations in units of var_near. If the ordering option is not chosen, the default ordering is weak. {p_end}
+
+{p 0 4}{cmd:signed()} is optional and specifies that the maximum distance between any pair of observations in units of var_near be signed. This option can take values of either {it:positive} or {it:negative}.
+Positive implies that differences between the main and using data be greater than the limit while negative implies that the differences be less than the limit. If no limit is supplied and this option is chosen,
+the default limit is 0. {p_end}
+
+{p 0 4}{cmd:ordering()} is optional and specifies whether any differences with the limit be {it:weak} or {it:positive}. {p_end}
 
 {p 0 4}{cmd:genmatch()} is optional and specifies that a new variable should be created in the master datset that identifies the
 specific value of {cmd:var_near} in the using dataset that was matched.  {p_end}

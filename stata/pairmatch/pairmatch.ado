@@ -45,10 +45,25 @@ then an arbitrary decision is made.
 program define pairmatch
 	syntax [varlist(default=none)] using ,  ///
 		var_near(varname numeric) ///
-		[LIMit(str asis) GENMATCH(str asis)   * ]
+		[LIMit(str asis) SIGNed(str asis) ORDERing(str asis) GENMATCH(str asis)   * ]
 	****************************************************************************
 	*** A) PRElIMINARIES ***
 	****************************************************************************
+	** Check Options Are Consistent
+	if "`ordering'" != "" & !inlist("`ordering'","strict","weak") {
+		di as err "Ordering option mispecified; it must be strict or weak"
+		error 461
+	}
+	if "`signed'" != "" & !inlist("`signed'","positive","negative") {
+		di as err "Signed option mispecified; it must be positive or negative"
+		error 461
+	}
+
+	** Default Optoins
+	if "`ordering'" == "" {
+		local ordering weak
+	}
+
 	if `"`genmatch'"'!=`""' confirm new var `genmatch'
 
 	** Identify All Variables
@@ -107,9 +122,37 @@ program define pairmatch
 	tempvar dif
 	gen double `dif' = abs(`var_near_1' - `var_near_2')
 
-	** Omit Pairs with Differences Exceeding Limit (If Specified)
-	if `"`limit'"' != "" {
-		keep if `dif' <= `limit'
+	** Signed and Limit Options
+	if "`signed'" == "" {
+		** Omit Pairs with Differences Exceeding Limit (If Specified)
+		if 		`"`limit'"' != "" & "`ordering'" == "weak" {
+			keep if `dif' <= `limit'
+		}
+		else if `"`limit'"' != "" & "`ordering'" == "strict" {
+			keep if `dif' < `limit'
+		}
+	}
+	else {
+		** Create Limit of 0 If No Limit
+		if "`limit'" == "" {
+			local limit = 0	// assign limit of 0
+		}
+		** Generate Signed Differences
+		tempvar dif_sign
+		gen double `dif_sign' = `var_near_1' - `var_near_2'
+		** Omit Pairs
+		if 		"`signed'" == "positive" & "`ordering'" == "weak" {
+			keep if `dif_sign' >= `limit'
+		}
+		else if "`signed'" == "positive" & "`ordering'" == "strict" {
+			keep if `dif_sign' > `limit'
+		}
+		else if "`signed'" == "negative" & "`ordering'" == "weak" {
+			keep if `dif_sign' <= `limit'
+		}
+		else if "`signed'" == "negative" & "`ordering'" == "strict" {
+			keep if `dif_sign' < `limit'
+		}
 	}
 
 	** Sort in Ascending Order of Differences
