@@ -125,10 +125,10 @@ program define pairmatch
 	** Signed and Limit Options
 	if "`signed'" == "" {
 		** Omit Pairs with Differences Exceeding Limit (If Specified)
-		if 		`"`limit'"' != "" & "`ordering'" == "weak" {
+		if 		"`limit'" != "" & "`ordering'" == "weak" {
 			keep if `dif' <= `limit'
 		}
-		else if `"`limit'"' != "" & "`ordering'" == "strict" {
+		else if "`limit'" != "" & "`ordering'" == "strict" {
 			keep if `dif' < `limit'
 		}
 	}
