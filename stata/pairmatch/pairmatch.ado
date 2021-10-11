@@ -41,7 +41,6 @@ illustrated if we have N = 1 with one main observation and two using
 observations. If the main observation is equally close to the using observation,
 then an arbitrary decision is made.
 */
-
 program define pairmatch
 	syntax [varlist(default=none)] using ,  ///
 		var_near(varname numeric) ///
@@ -116,7 +115,12 @@ program define pairmatch
 	*** B) NEAREST MATCHING ***
 	****************************************************************************
 	** Joinby Data to Form All Pairwise Comparisons
-	joinby 	 `varlist' 	using "`dta_using'"
+	if "`varlist'" == "" {
+		cross	using "`dta_using'"
+	}
+	else {
+		joinby 	 `varlist' 	using "`dta_using'"
+	}
 
 	** Generate Absolute Differences
 	tempvar dif
@@ -159,8 +163,34 @@ program define pairmatch
 	sort `varlist' `dif', stable
 
 	** Omit Non-nearest Pairs
-	qui duplicates drop `varlist' `var_near_1', force
-	qui duplicates drop `varlist' `var_near_2', force
+	local continue = "true"
+	local n = 1
+	while "`continue'" == "true" {
+		** Varlist Check
+		if "`varlist'" == "" {
+			** Drop First Set of Variables
+			qui drop if `var_near_1' == `var_near_1'[`n'] & `var_near_2' != `var_near_2'[`n']
+			local num_drop_1 = r(N_drop)
+			** Drop Second Set of Variables
+			qui drop if `var_near_1' != `var_near_1'[`n'] & `var_near_2' == `var_near_2'[`n']
+			local num_drop_2 = r(N_drop)
+		}
+		else {
+			** Drop First Set of Variables
+			qui by `varlist': drop if `var_near_1' == `var_near_1'[`n'] & `var_near_2' != `var_near_2'[`n']
+			local num_drop_1 = r(N_drop)
+			** Drop Second Set of Variables
+			qui by `varlist': drop if `var_near_1' != `var_near_1'[`n'] & `var_near_2' == `var_near_2'[`n']
+			local num_drop_2 = r(N_drop)
+		}
+		** Continuation Check
+		if `num_drop_1' == 0 & `num_drop_2' == 0 {
+			local continue = "false"
+		}
+		else {
+			local n = `n' + 1
+		}
+	}
 
 	****************************************************************************
 	*** C) MERGE DATA ***
